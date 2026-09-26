@@ -10,7 +10,7 @@ import (
 	. "maragu.dev/gomponents"
 	ghttp "maragu.dev/gomponents/http"
 
-	"app/html"
+	"app/sites/quintodrome/html"
 )
 
 // Home registers the index and download handlers.

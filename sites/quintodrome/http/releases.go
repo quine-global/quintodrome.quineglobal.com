@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"app/html"
+	"app/sites/quintodrome/html"
 )
 
 const releasesAPI = "https://api.github.com/repos/quine-global/quintodrome/releases?per_page=30"

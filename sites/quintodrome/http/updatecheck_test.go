@@ -5,7 +5,7 @@ import (
 
 	"maragu.dev/is"
 
-	"app/html"
+	"app/sites/quintodrome/html"
 )
 
 func TestSemverCmp(t *testing.T) {

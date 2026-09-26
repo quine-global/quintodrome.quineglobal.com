@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"app/html"
+	"app/sites/quintodrome/html"
 )
 
 // hazelUpdate is the response format expected by desktop auto-updaters

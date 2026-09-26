@@ -9,7 +9,7 @@ import (
 
 	"maragu.dev/is"
 
-	"app/http"
+	"app/sites/quintodrome/http"
 )
 
 func TestServer_Start(t *testing.T) {

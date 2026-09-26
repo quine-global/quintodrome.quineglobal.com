@@ -10,7 +10,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"maragu.dev/env"
 
-	"app/http"
+	"app/sites/quintodrome/http"
 )
 
 func main() {

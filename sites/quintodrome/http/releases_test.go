@@ -8,10 +8,10 @@ import (
 
 func TestClassifyAsset(t *testing.T) {
 	cases := []struct {
-		name       string
-		wantOS     string
-		wantArch   string
-		wantOK     bool
+		name     string
+		wantOS   string
+		wantArch string
+		wantOK   bool
 	}{
 		// Windows — real asset: Quintodrome_1.0.0-alpha_x64-setup.exe
 		{"Quintodrome_1.0.0-alpha_x64-setup.exe", "windows", "x64", true},
@@ -101,9 +101,9 @@ func TestClassifyAsset(t *testing.T) {
 
 func TestParseTag(t *testing.T) {
 	cases := []struct {
-		tag        string
-		wantVer    string
-		wantBuild  int
+		tag       string
+		wantVer   string
+		wantBuild int
 	}{
 		{"4.0.0", "4.0.0", 0},
 		{"4.0.0-q", "4.0.0", 0},
