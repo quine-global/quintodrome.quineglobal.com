@@ -1,14 +1,17 @@
+# SITE selects which site under sites/ to build/run: quintodrome or hyper.
+SITE ?= quintodrome
+
 .PHONY: benchmark
 benchmark:
 	go test -bench=.
 
 .PHONY: build
 build:
-	docker build --platform linux/amd64 . -t forge.quinefoundation.com/ironmagma/quintodrome-quineglobal-com
+	docker build --platform linux/amd64 --build-arg SITE=$(SITE) . -t forge.quinefoundation.com/ironmagma/$(SITE)-quineglobal-com
 
 .PHONY: push
 push: build
-	docker push forge.quinefoundation.com/ironmagma/quintodrome-quineglobal-com
+	docker push forge.quinefoundation.com/ironmagma/$(SITE)-quineglobal-com
 
 .PHONY: cover
 cover:
@@ -24,7 +27,7 @@ css-watch:
 
 .PHONY: dev
 dev:
-	@trap 'kill 0' SIGINT SIGTERM; npm run css:watch & go run ./cmd/app; wait
+	@trap 'kill 0' SIGINT SIGTERM; npm run css:watch & go run ./sites/$(SITE)/cmd; wait
 
 .PHONY: install
 install:
@@ -36,7 +39,7 @@ lint:
 
 .PHONY: start
 start:
-	go run ./cmd/app
+	go run ./sites/$(SITE)/cmd
 
 .PHONY: test
 test:

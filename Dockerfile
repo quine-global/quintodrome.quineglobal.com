@@ -4,7 +4,8 @@ WORKDIR /app
 RUN set -x && apt-get update && \
   DEBIAN_FRONTEND=noninteractive apt-get install -y curl
 
-COPY html ./html/
+COPY internal ./internal/
+COPY sites ./sites/
 
 FROM golang AS gobuilder
 WORKDIR /app
@@ -15,7 +16,8 @@ RUN go mod download
 COPY . ./
 
 ARG TARGETARCH
-RUN GOOS=linux GOARCH=${TARGETARCH} go build -buildvcs=false -ldflags="-s -w" -o ./app ./cmd/app
+ARG SITE=quintodrome
+RUN GOOS=linux GOARCH=${TARGETARCH} go build -buildvcs=false -ldflags="-s -w" -o ./app ./sites/${SITE}/cmd
 
 FROM debian:stable-slim AS runner
 WORKDIR /app
