@@ -1,0 +1,417 @@
+package html
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	. "maragu.dev/gomponents"
+	. "maragu.dev/gomponents/html"
+)
+
+// Release is a single GitHub release with per-platform download URLs.
+type Release struct {
+	TagName     string    // Full GitHub tag, e.g. "v4.0.0-q-canary.12"
+	Version     string    // Base semver, e.g. "4.0.0"
+	CanaryBuild int       // >0 for canary, e.g. 12 from "v4.0.0-q-canary.12"
+	Date        string    // Human date for UI, e.g. "May 2026"
+	PublishedAt time.Time // For update feed pub_date
+	IsCanary    bool
+	Assets      map[string]map[string]string // os -> arch -> URL
+}
+
+// DownloadURL returns the asset URL for the given OS and arch, or "" if unavailable.
+func (r Release) DownloadURL(os, arch string) string {
+	if m := r.Assets[os]; m != nil {
+		return m[arch]
+	}
+	return ""
+}
+
+// DisplayVersion returns a human-readable version string.
+// Canary builds render as "4.0.0 Canary #12".
+func (r Release) DisplayVersion() string {
+	if r.CanaryBuild > 0 {
+		return fmt.Sprintf("%s Canary #%d", r.Version, r.CanaryBuild)
+	}
+	return r.Version
+}
+
+func buildFallback(version, date string, published time.Time, canary bool) Release {
+	assets := make(map[string]map[string]string)
+	for _, os := range []string{"mac", "windows", "linux"} {
+		assets[os] = make(map[string]string)
+		for _, arch := range []string{"arm64", "x64"} {
+			assets[os][arch] = fallbackURL(version, os, arch)
+		}
+	}
+	tag := "v" + version
+	if canary {
+		tag = "v" + version + "-q-canary.1" // placeholder build
+	}
+	return Release{
+		TagName:     tag,
+		Version:     version,
+		Date:        date,
+		PublishedAt: published,
+		IsCanary:    canary,
+		Assets:      assets,
+	}
+}
+
+func fallbackURL(version, os, arch string) string {
+	switch os {
+	case "windows":
+		return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper.Setup.%s.exe", version, version)
+	case "linux":
+		if arch == "arm64" {
+			return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper-%s-arm64.AppImage", version, version)
+		}
+		return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper-%s.AppImage", version, version)
+	default: // mac
+		if arch == "arm64" {
+			return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper-%s-arm64.dmg", version, version)
+		}
+		return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper-%s.dmg", version, version)
+	}
+}
+
+// DownloadProps carries platform selection and release list for the download page.
+type DownloadProps struct {
+	DetectedOS   string
+	DetectedArch string
+	SelectedOS   string
+	SelectedArch string
+	ArchExplicit bool // true if arch came from an explicit ?arch= query param rather than auto-detection
+	Releases     []Release
+}
+
+type platformOption struct {
+	OS    string
+	Arch  string
+	Label string
+}
+
+var platforms = []platformOption{
+	{"mac", "arm64", "macOS · Apple Silicon"},
+	{"mac", "x64", "macOS · Intel"},
+	{"windows", "x64", "Windows · x64"},
+	{"linux", "x64", "Linux · x64"},
+	{"linux", "arm64", "Linux · ARM64"},
+}
+
+func fileExt(os string) string {
+	switch os {
+	case "windows":
+		return ".exe"
+	case "linux":
+		return ".AppImage"
+	case "linux-deb":
+		return ".deb"
+	case "linux-rpm":
+		return ".rpm"
+	case "linux-snap":
+		return ".snap"
+	case "linux-pacman":
+		return ".pacman"
+	case "linux-flatpak":
+		return ".flatpak"
+	default:
+		return ".dmg"
+	}
+}
+
+func platformLabel(os, arch string) string {
+	effectiveOS := os
+	if os == "linux-rpm" {
+		effectiveOS = "linux"
+	}
+	for _, p := range platforms {
+		if p.OS == effectiveOS && p.Arch == arch {
+			return p.Label
+		}
+	}
+	return effectiveOS + " · " + arch
+}
+
+// DownloadPage renders the download page with OS/arch selection and version list.
+func DownloadPage(props PageProps, dl DownloadProps) Node {
+	props.Title = "Download — Quine Hyper"
+	props.Description = "Download Quine Hyper for macOS, Windows, or Linux."
+
+	// Split into stable and canary.
+	var stable, canary []Release
+	for _, r := range dl.Releases {
+		if r.IsCanary {
+			canary = append(canary, r)
+		} else {
+			stable = append(stable, r)
+		}
+	}
+
+	content := []Node{
+		If(dl.SelectedOS == "mac" && !dl.ArchExplicit, macArchDetectScript()),
+		H1(Class("font-mono text-3xl font-bold text-white"), Text("Download Quine Hyper")),
+		Div(Class("mt-8"),
+			P(Class("font-mono text-xs uppercase tracking-widest text-zinc-500 mb-3"), Text("Platform")),
+			Div(Class("flex flex-wrap gap-2"),
+				Group(platformButtons(dl)),
+			),
+			If(strings.HasPrefix(dl.SelectedOS, "linux"),
+				linuxFormatToggle(dl),
+			),
+		),
+	}
+	if len(stable) > 0 {
+		content = append(content, stableSection(stable, dl))
+	}
+	if len(canary) > 0 {
+		content = append(content, canarySection(canary, dl))
+	}
+	content = append(content,
+		Div(Class("mt-6 text-center"),
+			A(
+				Href("https://github.com/quine-global/hyper/releases"),
+				Class("font-mono text-xs text-zinc-500 hover:text-white transition-colors underline underline-offset-4"),
+				Text("All releases on GitHub ↗"),
+			),
+		),
+	)
+
+	return page(props,
+		Div(Class("mx-auto max-w-xl py-16"),
+			Group(content),
+		),
+	)
+}
+
+func stableSection(stable []Release, dl DownloadProps) Node {
+	latest := stable[0]
+	older := stable[1:]
+	url := latest.DownloadURL(dl.SelectedOS, dl.SelectedArch)
+
+	return Group{
+		Div(Class("mt-10"),
+			Div(Class("mb-4 flex items-center gap-3"),
+				P(Class("font-mono text-xs uppercase tracking-widest text-seafoam-400"), Text("Stable releases")),
+			),
+
+			// Primary download card
+			Div(Class("min-h-[200px] flex items-center rounded-xl border border-seafoam-400/30 bg-zinc-900 p-6"),
+				Div(Class("flex w-full items-center justify-between gap-4 flex-wrap"),
+					Div(
+						Span(Class("font-mono text-xs font-semibold uppercase tracking-widest text-seafoam-400"),
+							Text("Latest Stable"),
+						),
+						H2(Class("mt-1 font-mono text-xl font-bold text-white"),
+							Text("Quine Hyper v"+latest.DisplayVersion()),
+						),
+						P(Class("mt-1 font-mono text-xs text-zinc-500"),
+							Text(latest.Date+" · "+platformLabel(dl.SelectedOS, dl.SelectedArch)+fileExt(dl.SelectedOS)),
+						),
+					),
+					Div(Class("flex-1")),
+					downloadButton(url, "bg-seafoam-400 hover:bg-seafoam-500 text-black"),
+				),
+			),
+		),
+
+		// Older stable releases
+		If(len(older) > 0,
+			Div(Class("mt-8"),
+				P(Class("font-mono text-xs uppercase tracking-widest text-zinc-500 mb-4"), Text("Older releases")),
+				Div(Class("divide-y divide-zinc-800 rounded-xl border border-zinc-800"),
+					Group(releaseRows(older, dl, "text-seafoam-400 hover:text-seafoam-500")),
+				),
+			),
+		),
+	}
+}
+
+func canarySection(canary []Release, dl DownloadProps) Node {
+	latest := canary[0]
+	older := canary[1:]
+	url := latest.DownloadURL(dl.SelectedOS, dl.SelectedArch)
+
+	return Div(Class("mt-10"),
+		Div(Class("mb-4 flex items-center gap-3"),
+			P(Class("font-mono text-xs uppercase tracking-widest text-canary-500"), Text("Canary releases")),
+			Span(Class("font-mono text-xs text-zinc-600"), Text("— unstable, may contain bugs")),
+		),
+
+		// Latest canary card
+		Div(Class("rounded-xl border border-canary-500/30 bg-zinc-900 p-6"),
+			Div(Class("flex items-center justify-between gap-4 flex-wrap"),
+				Div(
+					Span(Class("font-mono text-xs font-semibold uppercase tracking-widest text-canary-400"),
+						Text("Latest Canary"),
+					),
+					H2(Class("mt-1 font-mono text-base font-bold text-white"),
+						Text("Quine Hyper v"+latest.DisplayVersion()),
+					),
+					P(Class("mt-1 font-mono text-xs text-zinc-500"),
+						Text(latest.Date+" · "+platformLabel(dl.SelectedOS, dl.SelectedArch)+fileExt(dl.SelectedOS)),
+					),
+				),
+				downloadButton(url, "bg-canary-500 hover:bg-canary-400 text-black", "py-2 text-xs"),
+			),
+		),
+
+		// Older canary releases
+		If(len(older) > 0,
+			Div(Class("mt-4 divide-y divide-zinc-800 rounded-xl border border-zinc-800"),
+				Group(releaseRows(older, dl, "text-canary-400 hover:text-canary-300")),
+			),
+		),
+	)
+}
+
+func downloadButton(url, colorCls string, extraCls ...string) Node {
+	base := "inline-flex items-center justify-center gap-2 rounded-lg w-[135px] font-mono font-semibold transition-colors shrink-0 "
+
+	sizeCls := "px-6 py-3 text-sm"
+	if len(extraCls) > 0 && extraCls[0] != "" {
+		sizeCls = extraCls[0]
+	}
+
+	btnCls := base + sizeCls + " " + colorCls
+	unavailableCls := base + sizeCls + " border border-zinc-800 text-zinc-600"
+
+	if url == "" {
+		return Span(Class(unavailableCls), Text("Not available"))
+	}
+	return A(
+		Href(url),
+		Class(btnCls),
+		Text("↓ Download"),
+	)
+}
+
+func releaseRows(releases []Release, dl DownloadProps, linkCls string) []Node {
+	nodes := make([]Node, len(releases))
+	for i, r := range releases {
+		url := r.DownloadURL(dl.SelectedOS, dl.SelectedArch)
+		var link Node
+		if url != "" {
+			link = A(
+				Href(url),
+				Class("font-mono text-xs transition-colors "+linkCls),
+				Text("↓ "+platformLabel(dl.SelectedOS, dl.SelectedArch)+fileExt(dl.SelectedOS)),
+			)
+		} else {
+			link = Span(
+				Class("font-mono text-xs text-zinc-600"),
+				Text("Not available"),
+			)
+		}
+		nodes[i] = Div(Class("flex items-center justify-between px-5 py-4"),
+			Div(Class("flex items-center gap-4"),
+				Span(Class("font-mono text-sm font-semibold text-white"), Text("v"+r.DisplayVersion())),
+				Span(Class("font-mono text-xs text-zinc-500"), Text(r.Date)),
+			),
+			link,
+		)
+	}
+	return nodes
+}
+
+func platformButtons(dl DownloadProps) []Node {
+	nodes := make([]Node, len(platforms))
+	// Treat linux-rpm as linux for platform button highlight/detection purposes.
+	effectiveSelectedOS := dl.SelectedOS
+	if strings.HasPrefix(dl.SelectedOS, "linux") {
+		effectiveSelectedOS = "linux"
+	}
+	for i, p := range platforms {
+		isSelected := p.OS == effectiveSelectedOS && p.Arch == dl.SelectedArch
+		isDetected := p.OS == dl.DetectedOS && p.Arch == dl.DetectedArch
+
+		// Preserve the linux format when switching arch; snap is x64-only so don't carry it to arm64.
+		targetOS := p.OS
+		if p.OS == "linux" && strings.HasPrefix(dl.SelectedOS, "linux-") {
+			if dl.SelectedOS != "linux-snap" || p.Arch == "x64" {
+				targetOS = dl.SelectedOS
+			}
+		}
+
+		var cls string
+		if isSelected {
+			cls = "inline-flex items-center gap-1.5 rounded-md bg-primary-500 px-3 py-1.5 font-mono text-xs font-semibold text-black"
+		} else {
+			cls = "inline-flex items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 font-mono text-xs text-zinc-300 hover:border-zinc-500 hover:text-white transition-colors"
+		}
+
+		children := []Node{Text(p.Label)}
+		if isDetected && !isSelected {
+			children = append(children,
+				Span(Class("rounded bg-zinc-700 px-1 py-0.5 text-zinc-400 text-[10px]"), Text("auto")),
+			)
+		} else if isDetected && isSelected {
+			children = append(children,
+				Span(Class("rounded bg-black/20 px-1 py-0.5 text-[10px]"), Text("auto")),
+			)
+		}
+
+		nodes[i] = A(
+			Href(fmt.Sprintf("/download?os=%s&arch=%s", targetOS, p.Arch)),
+			Class(cls),
+			Group(children),
+		)
+	}
+	return nodes
+}
+
+// macArchDetectScript corrects the arm64 default guess on real Intel Macs.
+// Browser User-Agent strings report "Intel Mac OS X" even on Apple Silicon, so
+// the server can't tell arm64 from x64 from headers alone. The WebGL renderer
+// string is the one client-side signal that actually differs: Apple Silicon
+// reports something containing "Apple" (e.g. "Apple M2"); real Intel/AMD/Nvidia
+// GPUs never do. If it doesn't look like Apple Silicon, reload with ?arch=x64.
+func macArchDetectScript() Node {
+	return Script(Raw(`(function(){
+  try {
+    var c = document.createElement('canvas');
+    var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+    if (!gl) return;
+    var ext = gl.getExtension('WEBGL_debug_renderer_info');
+    if (!ext) return;
+    var renderer = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '');
+    if (!renderer || /Apple/i.test(renderer)) return;
+    var url = new URL(window.location.href);
+    url.searchParams.set('arch', 'x64');
+    window.location.replace(url.toString());
+  } catch (e) {}
+})();`))
+}
+
+func linuxFormatToggle(dl DownloadProps) Node {
+	selectedCls := "inline-flex items-center rounded-md bg-primary-500 px-3 py-1.5 font-mono text-xs font-semibold text-black"
+	unselectedCls := "inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 font-mono text-xs text-zinc-300 hover:border-zinc-500 hover:text-white transition-colors"
+	cls := func(targetOS string) string {
+		if dl.SelectedOS == targetOS {
+			return selectedCls
+		}
+		return unselectedCls
+	}
+	href := func(targetOS string) string {
+		return fmt.Sprintf("/download?os=%s&arch=%s", targetOS, dl.SelectedArch)
+	}
+
+	buttons := []Node{
+		A(Href(href("linux")), Class(cls("linux")), Text("AppImage")),
+		A(Href(href("linux-deb")), Class(cls("linux-deb")), Text("DEB")),
+		A(Href(href("linux-rpm")), Class(cls("linux-rpm")), Text("RPM")),
+		A(Href(href("linux-pacman")), Class(cls("linux-pacman")), Text("Pacman")),
+		A(Href(href("linux-flatpak")), Class(cls("linux-flatpak")), Text("Flatpak")),
+	}
+	if dl.SelectedArch == "x64" {
+		buttons = append(buttons, A(Href(href("linux-snap")), Class(cls("linux-snap")), Text("Snap")))
+	}
+
+	return Div(Class("mt-4"),
+		P(Class("font-mono text-xs uppercase tracking-widest text-zinc-500 mb-3"), Text("Format")),
+		Div(Class("flex items-center gap-2"),
+			Group(buttons),
+		),
+	)
+}
