@@ -37,45 +37,6 @@ func (r Release) DisplayVersion() string {
 	return r.Version
 }
 
-func buildFallback(version, date string, published time.Time, canary bool) Release {
-	assets := make(map[string]map[string]string)
-	for _, os := range []string{"mac", "windows", "linux"} {
-		assets[os] = make(map[string]string)
-		for _, arch := range []string{"arm64", "x64"} {
-			assets[os][arch] = fallbackURL(version, os, arch)
-		}
-	}
-	tag := "v" + version
-	if canary {
-		tag = "v" + version + "-q-canary.1" // placeholder build
-	}
-	return Release{
-		TagName:     tag,
-		Version:     version,
-		Date:        date,
-		PublishedAt: published,
-		IsCanary:    canary,
-		Assets:      assets,
-	}
-}
-
-func fallbackURL(version, os, arch string) string {
-	switch os {
-	case "windows":
-		return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper.Setup.%s.exe", version, version)
-	case "linux":
-		if arch == "arm64" {
-			return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper-%s-arm64.AppImage", version, version)
-		}
-		return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper-%s.AppImage", version, version)
-	default: // mac
-		if arch == "arm64" {
-			return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper-%s-arm64.dmg", version, version)
-		}
-		return fmt.Sprintf("https://github.com/quine-global/hyper/releases/download/v%s/QuineHyper-%s.dmg", version, version)
-	}
-}
-
 // DownloadProps carries platform selection and release list for the download page.
 type DownloadProps struct {
 	DetectedOS   string
@@ -123,7 +84,7 @@ func fileExt(os string) string {
 
 func platformLabel(os, arch string) string {
 	effectiveOS := os
-	if os == "linux-rpm" {
+	if strings.HasPrefix(os, "linux") {
 		effectiveOS = "linux"
 	}
 	for _, p := range platforms {
@@ -136,8 +97,8 @@ func platformLabel(os, arch string) string {
 
 // DownloadPage renders the download page with OS/arch selection and version list.
 func DownloadPage(props PageProps, dl DownloadProps) Node {
-	props.Title = "Download — Quine Hyper"
-	props.Description = "Download Quine Hyper for macOS, Windows, or Linux."
+	props.Title = "Download — Quintodrome"
+	props.Description = "Download Quintodrome for macOS, Windows, or Linux."
 
 	// Split into stable and canary.
 	var stable, canary []Release
@@ -151,7 +112,7 @@ func DownloadPage(props PageProps, dl DownloadProps) Node {
 
 	content := []Node{
 		If(dl.SelectedOS == "mac" && !dl.ArchExplicit, macArchDetectScript()),
-		H1(Class("font-mono text-3xl font-bold text-white"), Text("Download Quine Hyper")),
+		H1(Class("font-mono text-3xl font-bold text-white"), Text("Download Quintodrome")),
 		Div(Class("mt-8"),
 			P(Class("font-mono text-xs uppercase tracking-widest text-zinc-500 mb-3"), Text("Platform")),
 			Div(Class("flex flex-wrap gap-2"),
@@ -171,7 +132,7 @@ func DownloadPage(props PageProps, dl DownloadProps) Node {
 	content = append(content,
 		Div(Class("mt-6 text-center"),
 			A(
-				Href("https://github.com/quine-global/hyper/releases"),
+				Href("https://github.com/quine-global/quintodrome/releases"),
 				Class("font-mono text-xs text-zinc-500 hover:text-white transition-colors underline underline-offset-4"),
 				Text("All releases on GitHub ↗"),
 			),
@@ -204,7 +165,7 @@ func stableSection(stable []Release, dl DownloadProps) Node {
 							Text("Latest Stable"),
 						),
 						H2(Class("mt-1 font-mono text-xl font-bold text-white"),
-							Text("Quine Hyper v"+latest.DisplayVersion()),
+							Text("Quintodrome v"+latest.DisplayVersion()),
 						),
 						P(Class("mt-1 font-mono text-xs text-zinc-500"),
 							Text(latest.Date+" · "+platformLabel(dl.SelectedOS, dl.SelectedArch)+fileExt(dl.SelectedOS)),
@@ -247,7 +208,7 @@ func canarySection(canary []Release, dl DownloadProps) Node {
 						Text("Latest Canary"),
 					),
 					H2(Class("mt-1 font-mono text-base font-bold text-white"),
-						Text("Quine Hyper v"+latest.DisplayVersion()),
+						Text("Quintodrome v"+latest.DisplayVersion()),
 					),
 					P(Class("mt-1 font-mono text-xs text-zinc-500"),
 						Text(latest.Date+" · "+platformLabel(dl.SelectedOS, dl.SelectedArch)+fileExt(dl.SelectedOS)),
@@ -317,21 +278,23 @@ func releaseRows(releases []Release, dl DownloadProps, linkCls string) []Node {
 
 func platformButtons(dl DownloadProps) []Node {
 	nodes := make([]Node, len(platforms))
-	// Treat linux-rpm as linux for platform button highlight/detection purposes.
+	// Treat any linux-* variant as linux for platform button highlight/detection purposes.
 	effectiveSelectedOS := dl.SelectedOS
 	if strings.HasPrefix(dl.SelectedOS, "linux") {
 		effectiveSelectedOS = "linux"
 	}
+	effectiveDetectedOS := dl.DetectedOS
+	if strings.HasPrefix(dl.DetectedOS, "linux") {
+		effectiveDetectedOS = "linux"
+	}
 	for i, p := range platforms {
 		isSelected := p.OS == effectiveSelectedOS && p.Arch == dl.SelectedArch
-		isDetected := p.OS == dl.DetectedOS && p.Arch == dl.DetectedArch
+		isDetected := p.OS == effectiveDetectedOS && p.Arch == dl.DetectedArch
 
-		// Preserve the linux format when switching arch; snap is x64-only so don't carry it to arm64.
+		// Preserve the linux format when switching arch.
 		targetOS := p.OS
 		if p.OS == "linux" && strings.HasPrefix(dl.SelectedOS, "linux-") {
-			if dl.SelectedOS != "linux-snap" || p.Arch == "x64" {
-				targetOS = dl.SelectedOS
-			}
+			targetOS = dl.SelectedOS
 		}
 
 		var cls string
@@ -398,14 +361,12 @@ func linuxFormatToggle(dl DownloadProps) Node {
 	}
 
 	buttons := []Node{
+		A(Href(href("linux-flatpak")), Class(cls("linux-flatpak")), Text("Flatpak")),
+		A(Href(href("linux-snap")), Class(cls("linux-snap")), Text("Snap")),
 		A(Href(href("linux")), Class(cls("linux")), Text("AppImage")),
 		A(Href(href("linux-deb")), Class(cls("linux-deb")), Text("DEB")),
 		A(Href(href("linux-rpm")), Class(cls("linux-rpm")), Text("RPM")),
 		A(Href(href("linux-pacman")), Class(cls("linux-pacman")), Text("Pacman")),
-		A(Href(href("linux-flatpak")), Class(cls("linux-flatpak")), Text("Flatpak")),
-	}
-	if dl.SelectedArch == "x64" {
-		buttons = append(buttons, A(Href(href("linux-snap")), Class(cls("linux-snap")), Text("Snap")))
 	}
 
 	return Div(Class("mt-4"),

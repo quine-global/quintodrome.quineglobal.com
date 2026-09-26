@@ -13,8 +13,8 @@ import (
 	"app/html"
 )
 
-// hazelUpdate is the response format expected by Electron autoUpdater
-// (the same protocol used by the original releases.hyper.is / Hazel).
+// hazelUpdate is the response format expected by desktop auto-updaters
+// following the Hazel/Squirrel convention.
 type hazelUpdate struct {
 	Name    string `json:"name"`
 	Notes   string `json:"notes,omitempty"`
@@ -27,19 +27,16 @@ type hazelUpdate struct {
 //   - GET /api/update-check  (primary, matches existing expectations)
 //   - GET /update            (convenience short path)
 //
-// This implements the update protocol used by Hyper's Electron autoUpdater
-// (the same one originally served from releases.hyper.is via Hazel).
-//
 // Query params:
 //
-//	version  — client's current version, e.g. "4.0.0-q-canary.12" or "v4.0.0"
+//	version  — client's current version, e.g. "1.0.0-alpha" or "v1.0.0"
 //	platform — darwin | win32 | linux | deb   (or os= for compatibility)
 //	arch     — x64 | arm64
 //	channel  — "stable" | "canary"   (explicit preference; takes precedence for track selection)
 //
 // Response:
 //   - 204 No Content  → no update available
-//   - 200 JSON        → update available (Hazel/Squirrel format: {name, notes, pub_date, url?})
+//   - 200 JSON        → update available ({name, notes, pub_date, url?})
 func (s *Server) UpdateCheck(r chi.Router) {
 	r.Get("/api/update-check", s.updateCheckHandler())
 }
@@ -61,7 +58,7 @@ func (s *Server) updateCheckHandler() http.HandlerFunc {
 		clientBase, clientBuild := parseTag(rawVersion)
 		clientIsCanary := clientBuild > 0 || channel == "canary" || channel == "canaryupdates"
 
-		// Map incoming platform names from the Hyper client to our internal asset keys.
+		// Map incoming platform names from the desktop client to our internal asset keys.
 		internalOS := normalizePlatformForAssets(platform)
 
 		releases := s.releases.Get()
@@ -99,7 +96,7 @@ func (s *Server) updateCheckHandler() http.HandlerFunc {
 		// Build the Hazel-compatible response.
 		resp := hazelUpdate{
 			Name:    candidate.TagName,
-			Notes:   fmt.Sprintf("Quine Hyper %s", candidate.TagName),
+			Notes:   fmt.Sprintf("Quintodrome %s", candidate.TagName),
 			PubDate: candidate.PublishedAt.UTC().Format(time.RFC3339),
 			URL:     candidate.DownloadURL(internalOS, arch),
 		}
@@ -110,7 +107,7 @@ func (s *Server) updateCheckHandler() http.HandlerFunc {
 		if resp.URL == "" {
 			// Provide a generic GitHub releases URL as a fallback.
 			// The client already falls back to constructing a tag URL.
-			resp.URL = fmt.Sprintf("https://github.com/quine-global/hyper/releases/tag/%s", candidate.TagName)
+			resp.URL = fmt.Sprintf("https://github.com/quine-global/quintodrome/releases/tag/%s", candidate.TagName)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -127,7 +124,7 @@ func firstNonEmpty(a, b string) string {
 	return b
 }
 
-// normalizePlatformForAssets converts values the Hyper client sends
+// normalizePlatformForAssets converts values the desktop client sends
 // (darwin, win32, deb, etc.) into the keys used in Release.Assets.
 func normalizePlatformForAssets(p string) string {
 	switch strings.ToLower(p) {

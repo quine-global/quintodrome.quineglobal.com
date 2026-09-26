@@ -25,6 +25,6 @@ func (s *Server) setupRoutes() {
 	})
 
 	// Also expose the update feed at the short /update path for convenient
-	// feed URLs (e.g. https://hyper.quineglobal.com/update?platform=...&version=...)
+	// feed URLs (e.g. https://quintodrome.quineglobal.com/update?platform=...&version=...)
 	s.mux.Get("/update", s.updateCheckHandler())
 }

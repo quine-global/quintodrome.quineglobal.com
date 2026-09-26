@@ -5,60 +5,67 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// HomePage is the Quine Hyper landing page.
+// HomePage is the Quintodrome landing page.
 func HomePage(props PageProps) Node {
-	props.Title = "Quine Hyper — The thoughtful terminal"
-	props.Description = "Quine Hyper is a beautiful, extensible terminal emulator forked from Vercel's Hyper. Built on web technology with a thriving plugin ecosystem."
+	props.Title = "Quintodrome — Your music, self-hosted"
+	props.Description = "Quintodrome wraps Navidrome, your self-hosted music server, into a native desktop app for macOS, Windows, and Linux."
 
 	return page(props,
 		// Hero
 		Div(Class("py-20 text-center"),
 			Div(Class("mb-6 inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-1.5"),
 				Span(Class("h-2 w-2 rounded-full bg-primary-400")),
-				Span(Class("font-mono text-xs text-zinc-400"), Text("Forked from Vercel's Hyper")),
+				Span(Class("font-mono text-xs text-zinc-400"), Text("Powered by Navidrome")),
 			),
 			H1(Class("font-mono text-5xl font-bold tracking-tight text-white sm:text-6xl"),
-				Text("The thoughtful terminal."),
+				Text("Your music. Your server."),
 			),
 			P(Class("mx-auto mt-6 max-w-2xl font-mono text-lg text-zinc-400"),
-				Text("A beautiful, extensible terminal built with care."),
+				Text("Quintodrome wraps your self-hosted music library into a native desktop app. No setup, no subscription, no one else's server."),
 			),
 			Div(Class("mt-10 flex flex-wrap items-center justify-center gap-4"),
 				A(Href("/download"),
 					Class("inline-flex items-center gap-2 rounded-lg bg-primary-500 px-8 py-3 font-mono text-base font-semibold text-black hover:bg-primary-400 transition-colors"),
 					Text("Download for free"),
 				),
-				A(Href("https://github.com/quine-global/hyper"),
+				A(Href("https://github.com/quine-global/quintodrome"),
 					Class("inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-8 py-3 font-mono text-base font-semibold text-white hover:border-zinc-500 transition-colors"),
 					Text("View on GitHub"),
 				),
 			),
 		),
 
-		// Terminal window mockup
+		// Player mockup
 		Div(Class("mx-auto mb-20 max-w-3xl overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 shadow-2xl"),
 			// Title bar
 			Div(Class("flex items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-4 py-3"),
 				Div(Class("h-3 w-3 rounded-full bg-red-500 opacity-80")),
 				Div(Class("h-3 w-3 rounded-full bg-yellow-500 opacity-80")),
 				Div(Class("h-3 w-3 rounded-full bg-primary-500 opacity-80")),
-				Span(Class("ml-4 font-mono text-xs text-zinc-500"), Text("quine-hyper — bash — 80×24")),
+				Span(Class("ml-4 font-mono text-xs text-zinc-500"), Text("quintodrome — now playing")),
 			),
-			// Terminal body
-			Div(Class("p-6 font-mono text-sm leading-relaxed"),
-				termPrompt("deep-thought --answer"),
-				termOutput("42"),
-				termPrompt("hyper install infinite-improbability"),
-				termOutput("✔ Engaging drive..."),
-				termOutput("✔ Probability: 2:1 against."),
-				termOutput("✔ Don't Panic."),
-				termPrompt("ls ~/projects"),
-				termOutput("drwxr-xr-x  earth/"),
-				termOutput("drwxr-xr-x  magrathea/"),
-				termOutput("drwxr-xr-x  slartibartfast/"),
-				Div(Class("flex items-center gap-0 text-primary-400"),
-					Span(Class("text-zinc-500"), Text("❯ ")),
-					Span(Class("animate-pulse"), Text("█")),
+			// Now-playing body
+			Div(Class("p-8"),
+				Div(Class("flex items-center gap-5"),
+					Div(Class("h-20 w-20 shrink-0 rounded-lg bg-gradient-to-br from-primary-400 to-primary-500")),
+					Div(Class("min-w-0 text-left"),
+						P(Class("truncate font-mono text-base font-semibold text-white"), Text("Brandenburg Concerto No. 3")),
+						P(Class("mt-1 truncate font-mono text-sm text-zinc-400"), Text("J.S. Bach — Library/Classical")),
+					),
+				),
+				Div(Class("mt-6"),
+					Div(Class("h-1.5 w-full overflow-hidden rounded-full bg-zinc-800"),
+						Div(Class("h-full w-1/3 rounded-full bg-primary-400")),
+					),
+					Div(Class("mt-2 flex justify-between font-mono text-xs text-zinc-500"),
+						Span(Text("1:42")),
+						Span(Text("5:07")),
+					),
+				),
+				Div(Class("mt-6 flex items-center justify-center gap-6 font-mono text-lg text-zinc-400"),
+					Span(Text("⏮")),
+					Span(Class("text-2xl text-white"), Text("⏸")),
+					Span(Text("⏭")),
 				),
 			),
 		),
@@ -66,36 +73,31 @@ func HomePage(props PageProps) Node {
 		// Features
 		Div(Class("pb-20"),
 			H2(Class("text-center font-mono text-xs font-semibold uppercase tracking-widest text-zinc-500"),
-				Text("Why Quine Hyper"),
+				Text("Why Quintodrome"),
 			),
 			Div(Class("mt-12 grid grid-cols-1 gap-6 md:grid-cols-2"),
-				featureCard("Plugin Ecosystem",
-					Group{
-						Text("Install plugins and themes from npm. Browse "),
-						A(Href("https://hyper.is/plugins"),
-							Class("text-primary-400 hover:text-primary-300 underline"),
-							Text("featured plugins"),
-						),
-						Text(" and "),
-						A(Href("https://hyper.is/themes"),
-							Class("text-primary-400 hover:text-primary-300 underline"),
-							Text("featured themes"),
-						),
-						Text(". Build your own with HTML, CSS, and JavaScript."),
-					},
-					"npm install hyper-snazzy",
+				featureCard("Zero Setup",
+					Text("Launch the app and it provisions and starts its own music server for you — no admin account to create, no config file to write."),
+					"double-click → listening",
 				),
 				featureCard("Cross-Platform",
-					Text("Runs on macOS, Windows, and Linux. One consistent experience across every machine you use."),
+					Text("Native apps for macOS, Windows, and Linux, all wrapping the same self-hosted server underneath."),
 					"Works everywhere you do.",
 				),
-				featureCard("Web-Native",
-					Text("Built on Electron, React, and xterm.js. Hack on the terminal itself using the same tools you use every day."),
-					"HTML + CSS + JS = your terminal",
+				featureCard("Your Library, Your Rules",
+					Group{
+						Text("Point it at your music folder and it's yours: no subscription, no catalog gaps, no algorithm. Built on "),
+						A(Href("https://www.navidrome.org"),
+							Class("text-primary-400 hover:text-primary-300 underline"),
+							Text("Navidrome"),
+						),
+						Text("."),
+					},
+					"~/Music → your library",
 				),
-				featureCard("Fully Customizable",
-					Text("Tweak every detail with CSS. Change fonts, colors, animations, and layouts — no config file limits."),
-					"hyper.json → your rules",
+				featureCard("Subsonic Compatible",
+					Text("Speaks the Subsonic/OpenSubsonic API, so your library also works with the mobile and desktop clients you already use."),
+					"stream anywhere, from one server",
 				),
 			),
 		),
@@ -103,31 +105,20 @@ func HomePage(props PageProps) Node {
 		// Origin story
 		Div(Class("mb-20 rounded-xl border border-zinc-800 bg-zinc-900 p-10 text-center"),
 			Img(Src("/images/quineglobal-logo.png"), Alt("Quine Global"), Class("mx-auto mb-6 h-12 w-12 rounded-full")),
-			H2(Class("font-mono text-2xl font-bold text-white"), Text("Built on Hyper")),
+			H2(Class("font-mono text-2xl font-bold text-white"), Text("Built on Navidrome")),
 			P(Class("mx-auto mt-4 max-w-xl font-mono text-base text-zinc-400"),
-				Text("Quine Hyper is a fork of "),
-				A(Href("https://hyper.is"), Class("text-primary-400 hover:text-primary-300 underline"), Text("Hyper")),
-				Text(", the open-source terminal by Vercel. We're building on that foundation with new capabilities and active development."),
+				Text("Quintodrome is a fork of "),
+				A(Href("https://github.com/navidrome/navidrome"), Class("text-primary-400 hover:text-primary-300 underline"), Text("Navidrome")),
+				Text(", the open-source self-hosted music server. We wrap it in a native desktop shell so there's nothing to install or configure separately."),
 			),
 			Div(Class("mt-8"),
-				A(Href("https://github.com/quine-global/hyper"),
+				A(Href("https://github.com/quine-global/quintodrome"),
 					Class("inline-block rounded-lg border border-zinc-700 bg-zinc-800 px-6 py-3 font-mono text-sm font-semibold text-white hover:border-zinc-500 transition-colors"),
 					Text("Star us on GitHub"),
 				),
 			),
 		),
 	)
-}
-
-func termPrompt(cmd string) Node {
-	return Div(Class("flex items-center gap-2"),
-		Span(Class("text-primary-400"), Text("❯")),
-		Span(Class("text-white"), Text(cmd)),
-	)
-}
-
-func termOutput(line string) Node {
-	return Div(Class("pl-5 text-zinc-400"), Text(line))
 }
 
 func featureCard(title string, body Node, code string) Node {

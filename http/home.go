@@ -56,7 +56,8 @@ func detectPlatform(ua string) (os, arch string) {
 	case strings.Contains(u, "macintosh"), strings.Contains(u, "mac os"):
 		return "mac", "arm64" // default Apple Silicon; user can override
 	case strings.Contains(u, "linux"):
-		return "linux", "x64"
+		// Quintodrome currently ships Linux builds as Flatpak/Snap only (no AppImage).
+		return "linux-flatpak", "x64"
 	default:
 		return "mac", "arm64"
 	}

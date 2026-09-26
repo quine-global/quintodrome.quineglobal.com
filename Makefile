@@ -4,11 +4,11 @@ benchmark:
 
 .PHONY: build
 build:
-	docker build --platform linux/amd64 . -t forge.quinefoundation.com/ironmagma/hyper-quineglobal-com
+	docker build --platform linux/amd64 . -t forge.quinefoundation.com/ironmagma/quintodrome-quineglobal-com
 
 .PHONY: push
 push: build
-	docker push forge.quinefoundation.com/ironmagma/hyper-quineglobal-com
+	docker push forge.quinefoundation.com/ironmagma/quintodrome-quineglobal-com
 
 .PHONY: cover
 cover:
